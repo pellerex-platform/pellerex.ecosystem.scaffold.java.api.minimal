@@ -1,0 +1,12 @@
+# Quality Assurance profile (SPRING_PROFILES_ACTIVE=qualityassurance).
+app:
+  allowed-origins: "https://www.pellerex.com"
+
+logging:
+  level:
+    # LOG_LEVEL env beats the profile default (same contract as the other scaffolds).
+    com.pellerex.api: ${LOG_LEVEL:INFO}
+  structured:
+    ecs:
+      service:
+        environment: qualityassurance

@@ -1,0 +1,22 @@
+# Maven build output
+target/
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# OWASP dependency-check
+dependency-check-report.*
+
+# OS
+.DS_Store
+
+# Local secrets (never commit secret material)
+/secrets/
+
+# Local log files (daily-rolling file sinks)
+logs/

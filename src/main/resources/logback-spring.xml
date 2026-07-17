@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Structured logging with Serilog-equivalent sinks (JV-D7 parity with the .NET scaffold):
+
+  1. CONSOLE   - ECS JSON to stdout (always; collected by the platform). Uses Spring Boot's
+                 native StructuredLogEncoder, which also stamps the standing enrichers
+                 (service name/version/environment from logging.structured.ecs.service.*)
+                 and includes MDC entries (CorrelationId, and the portal's Logs-tab
+                 request keys on the completion line) on every record.
+  2. FILE_TEXT - daily-rolling logs/log-<date>.log (human-readable), pruned after
+                 pellerex.logging.retention-days.
+  3. FILE_JSON - daily-rolling logs/log-<date>.json (ECS JSON, machine-queryable).
+  4. App Insights - NOT an appender here: the Application Insights -javaagent captures
+                 Logback records codelessly and ships them with trace correlation (J5).
+
+  The file directory is a writable emptyDir (/var/log/app) in-cluster - the read-only
+  root filesystem stays intact. Level comes from application.yml (logging.level.*).
+-->
+<configuration>
+  <springProperty scope="context" name="LOG_DIR" source="pellerex.logging.file-directory" defaultValue="logs"/>
+  <springProperty scope="context" name="LOG_RETENTION_DAYS" source="pellerex.logging.retention-days" defaultValue="31"/>
+
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="org.springframework.boot.logging.logback.StructuredLogEncoder">
+      <format>ecs</format>
+    </encoder>
+  </appender>
+
+  <appender name="FILE_TEXT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <fileNamePattern>${LOG_DIR}/log-%d{yyyyMMdd}.log</fileNamePattern>
+      <maxHistory>${LOG_RETENTION_DAYS}</maxHistory>
+      <cleanHistoryOnStart>true</cleanHistoryOnStart>
+    </rollingPolicy>
+    <encoder>
+      <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} [%-5level] %logger{36} - %msg %X{CorrelationId}%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <fileNamePattern>${LOG_DIR}/log-%d{yyyyMMdd}.json</fileNamePattern>
+      <maxHistory>${LOG_RETENTION_DAYS}</maxHistory>
+      <cleanHistoryOnStart>true</cleanHistoryOnStart>
+    </rollingPolicy>
+    <encoder class="org.springframework.boot.logging.logback.StructuredLogEncoder">
+      <format>ecs</format>
+    </encoder>
+  </appender>
+
+  <root level="INFO">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="FILE_TEXT"/>
+    <appender-ref ref="FILE_JSON"/>
+  </root>
+</configuration>

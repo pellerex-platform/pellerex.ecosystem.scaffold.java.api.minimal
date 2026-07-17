@@ -1,0 +1,101 @@
+# Root API spec — the Pellerex Standards scan checks /openapi.yaml (repo root) for its
+# HasApiSpec maturity signal. Keep this in sync with the controllers under
+# src/main/java/com/pellerex/api/controller/.
+openapi: 3.0.3
+info:
+  title: RepoUniqueNormalisedIdentifier
+  description: Pellerex managed API (Java / Spring Boot minimal scaffold).
+  version: 1.0.0
+servers:
+  - url: http://localhost:8890
+paths:
+  /health/startup:
+    get:
+      summary: Startup probe
+      tags: [Health]
+      responses:
+        "200":
+          description: Application has started.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /health/live:
+    get:
+      summary: Liveness probe
+      tags: [Health]
+      responses:
+        "200":
+          description: Application is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /health/ready:
+    get:
+      summary: Readiness probe
+      tags: [Health]
+      responses:
+        "200":
+          description: Configuration bound; ready to serve traffic.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "503":
+          description: Required configuration missing.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /v1/hello:
+    get:
+      summary: Sample endpoint proving config + secret wiring
+      tags: [Sample]
+      responses:
+        "200":
+          description: Sample response. Reports only WHETHER the database secret was read — never the value.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SampleResponse"
+  /v1/echo:
+    post:
+      summary: Sample validated input endpoint
+      tags: [Sample]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EchoRequest"
+      responses:
+        "200":
+          description: Echo response (score = message length).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SampleResponse"
+        "400":
+          description: Validation failure (blank or oversized message).
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      additionalProperties:
+        type: string
+    SampleResponse:
+      type: object
+      properties:
+        score:
+          type: integer
+        dbConnectionStringConfigured:
+          type: boolean
+    EchoRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          maxLength: 280
+  parameters: {}

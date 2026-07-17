@@ -1,0 +1,45 @@
+# Base configuration shared by every environment.
+# The active profile is selected per environment by SPRING_PROFILES_ACTIVE (JV-D21).
+
+server:
+  # Hard-coded platform port (JV-D5). NOT the <port-number> token (which resolves to 9000).
+  port: 8890
+  shutdown: graceful
+
+spring:
+  application:
+    # Tokenised to the repo identifier — also becomes the App Insights cloud role name.
+    name: RepoUniqueNormalisedIdentifier
+  lifecycle:
+    # Tomcat drains in-flight requests on SIGTERM before exit (JV-D13 / J10).
+    timeout-per-shutdown-phase: 20s
+  config:
+    # Read Key Vault secrets from the CSI tmpfs file mount as properties (JV-D6 / J4).
+    # SECRETS_MOUNT_PATH is the platform-standard env var selecting the mount location; it is
+    # unset in-cluster (so the default /mnt/secrets-store — where the CSI driver mounts — is used)
+    # and set by run-local.sh for local dev. 'optional:' keeps the app bootable when the mount is
+    # absent (local dev, or secret-provider-class-enabled=false). No secretObjects, no env-var secrets.
+    import: "optional:configtree:${SECRETS_MOUNT_PATH:/mnt/secrets-store}/"
+
+app:
+  # Required, boot-validated (JV-D21). Comma-separated CORS origins.
+  allowed-origins: "https://www.pellerex.com"
+
+# Config-as-code for the log sinks (JV-D7 parity). Precedence: env var > profile yml > default.
+# logback-spring.xml reads these via <springProperty>.
+pellerex:
+  logging:
+    file-directory: ${LOG_FILE_DIRECTORY:logs}
+    retention-days: ${LOG_RETENTION_DAYS:31}
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+  # Standing enrichers stamped on every ECS JSON record (console + json file) —
+  # the Serilog Enrich equivalent. service.environment is set per profile.
+  structured:
+    ecs:
+      service:
+        name: RepoUniqueNormalisedIdentifier
+        version: "1.0.0"
+        environment: development

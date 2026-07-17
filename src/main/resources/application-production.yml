@@ -1,0 +1,12 @@
+# Production profile (SPRING_PROFILES_ACTIVE=production).
+app:
+  allowed-origins: "https://www.pellerex.com"
+
+logging:
+  level:
+    # LOG_LEVEL env beats the profile default (same contract as the other scaffolds).
+    com.pellerex.api: ${LOG_LEVEL:WARN}
+  structured:
+    ecs:
+      service:
+        environment: production

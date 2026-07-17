@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Pinned Spring Boot 3.x parent (JV-D15), latest 3.5.x. -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.16</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.pellerex</groupId>
+    <artifactId>RepoUniqueNormalisedIdentifier</artifactId>
+    <version>1.0.0</version>
+    <name>RepoUniqueNormalisedIdentifier</name>
+    <description>Pellerex Managed API Service — Spring Boot REST API scaffold</description>
+
+    <properties>
+        <java.version>21</java.version>
+        <!-- Single source of truth for the OWASP dependency-check gate version (JV-D20 / J8). -->
+        <dependency-check-maven.version>12.2.2</dependency-check-maven.version>
+    </properties>
+
+    <dependencies>
+        <!-- REST + embedded Tomcat on port 8890 (JV-D14). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- @Valid / Bean Validation — 400 on bad input (JV-D21 / J15). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- Test (JUnit 5, MockMvc, ApplicationContextRunner). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <!-- Fixed jar name so the Dockerfile layered-extract step is repo-independent. -->
+        <finalName>application</finalName>
+        <plugins>
+            <!-- Produces the executable, layered Spring Boot jar (JV-D14 / J6). -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+
+            <!-- OWASP dependency-check gate — the Java pip-audit (JV-D20 / J8).
+                 Bound to the `verify` phase, so `mvn -B verify` in CI (J11) runs it while the
+                 Docker `mvn package` build stage (J6) does not. -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>${dependency-check-maven.version}</version>
+                <configuration>
+                    <!-- Fail the build on any dependency with a CVSS >= 7 (High/Critical). -->
+                    <failBuildOnCVSS>7</failBuildOnCVSS>
+                    <!-- NVD API key from CI env (faster, avoids rate limiting). Optional locally. -->
+                    <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+                    <formats>
+                        <format>HTML</format>
+                        <format>SARIF</format>
+                    </formats>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

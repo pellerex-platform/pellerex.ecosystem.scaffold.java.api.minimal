@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "RepoUniqueNormalisedIdentifier.fullname" . }}
+  labels:
+    {{- include "RepoUniqueNormalisedIdentifier.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  strategy:
+    type: {{ .Values.deploymentStrategy }}
+  selector:
+    matchLabels:
+      {{- include "RepoUniqueNormalisedIdentifier.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        timestamp: "{{ now | date "2006-01-02 15:04:05" }}"
+      {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "RepoUniqueNormalisedIdentifier.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "RepoUniqueNormalisedIdentifier.serviceAccountName" . }}
+      # Allow Tomcat to drain in-flight requests on SIGTERM (JV-D13 / J10).
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          volumeMounts:
+            # Writable temp dir — mandatory under a read-only root filesystem for the JVM
+            # (JIT, PID file, temp files) and the App Insights agent (JV-D20 / J14).
+            - name: tmp
+              mountPath: /tmp
+            # Writable dir for the daily-rolling file sinks under the read-only root FS.
+            - name: log-storage
+              mountPath: {{ .Values.logging.directory | quote }}
+            {{- if .Values.secretProviderClass.enabled }}
+            {{- range $k, $v := .Values.volumeMounts }}
+            - name: {{ $v.name | quote }}
+              mountPath: {{ $v.mountPath | quote }}
+              readOnly: true
+            {{- end }}
+            {{- end }}
+          env:
+            {{- range $k, $v := .Values.env }}
+            - name: {{ $v.name | quote }}
+              value: {{ $v.value | quote }}
+            {{- end }}
+            {{- range $k, $v := .Values.global.envValuesFrom }}
+            - name: {{ $k | quote }}
+              valueFrom:
+                fieldRef:
+                  fieldPath: {{ $v | quote }}
+            {{- end }}
+          ports:
+            - name: http
+              # Hard-coded platform port (JV-D5) — NOT the <port-number> token.
+              containerPort: 8890
+              protocol: TCP
+          # No livenessProbe / readinessProbe / startupProbe — the contract defines no k8s probes;
+          # reachability is proven through ProxyApi.
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        # Ephemeral log dir for the file sinks (complements stdout/App Insights;
+        # not the durable store).
+        - name: log-storage
+          emptyDir: {}
+        {{- if .Values.secretProviderClass.enabled }}
+        {{- range $k, $v := .Values.volumes }}
+        - name: {{ $v.name | quote }}
+          {{- if $v.csiSecretProviderClass }}
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: {{ $v.csiSecretProviderClass }}
+          {{- end }}
+        {{- end }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "RepoUniqueNormalisedIdentifier.selectorLabels" . | nindent 14 }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

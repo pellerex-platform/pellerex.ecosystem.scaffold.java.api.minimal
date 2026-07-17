@@ -1,0 +1,14 @@
+{
+  "role": {
+    "name": "RepoUniqueNormalisedIdentifier"
+  },
+  "instrumentation": {
+    "logging": {
+      "level": "INFO"
+    }
+  },
+  "selfDiagnostics": {
+    "destination": "console",
+    "level": "WARN"
+  }
+}

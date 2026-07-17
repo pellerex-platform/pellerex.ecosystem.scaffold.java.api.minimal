@@ -1,0 +1,140 @@
+replicaCount: 2
+deploymentStrategy: RollingUpdate
+
+image:
+  repository: pellerex/RepoUniqueNormalisedIdentifier
+  pullPolicy: Always
+  tag: "v1.0.0"
+
+env:
+  - name: "SPRING_PROFILES_ACTIVE"
+    value: "production"
+  # Codeless App Insights — read by the -javaagent (JV-D7 / J5).
+  - name: "APPLICATIONINSIGHTS_CONNECTION_STRING"
+    value: "<azure-app-insights-connection-string-in-production>"
+  # Daily-rolling file sinks write here (writable emptyDir; matches logging.directory below).
+  - name: "LOG_FILE_DIRECTORY"
+    value: "/var/log/app"
+
+global:
+  envValuesFrom: {}
+
+secretProviderClass:
+  enabled: <secret-provider-class-enabled>
+
+# CSI tmpfs file mount consumed by Spring via configtree:/mnt/secrets-store/ (JV-D6 / J4).
+volumes:
+  - name: RepoUniqueNormalisedIdentifier-api-keyvault-volume
+    csiSecretProviderClass: RepoUniqueNormalisedIdentifier-api-vault
+
+volumeMounts:
+  - name: RepoUniqueNormalisedIdentifier-api-keyvault-volume
+    mountPath: /mnt/secrets-store
+
+# Writable emptyDir for the daily-rolling file sinks (must match LOG_FILE_DIRECTORY above).
+# emptyDir is ephemeral - files complement stdout/App Insights, not the durable store.
+logging:
+  directory: /var/log/app
+
+imagePullSecrets:
+  - name: image-pull-secret
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: false
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+# Graceful Tomcat drain window on SIGTERM (>= spring.lifecycle.timeout-per-shutdown-phase).
+terminationGracePeriodSeconds: 30
+
+# Pod-level hardening (JV-D20 / J14).
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container-level hardening (JV-D20 / J14). Read-only root FS requires the writable /tmp emptyDir
+# wired in the deployment template.
+securityContext:
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 80
+  # Hard-coded platform port (JV-D5) — NOT the <port-number> token (resolves to 9000).
+  targetPort: 8890
+
+# JVM-sized requests/limits (JV-D14 / J13). The JVM floor is higher than the other languages;
+# the cross-language reference values are too small and would OOMKill on startup.
+# -XX:MaxRAMPercentage=75 keeps the heap inside the 1Gi limit.
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+ingress:
+  enabled: true
+  className: ""
+  annotations:
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      if ($http_origin ~* "^https?://((?:www\.pellerex\.com))$") {
+        set $cors "true";
+      }
+      if ($request_method = 'OPTIONS') {
+        set $cors "${cors}options";
+      }
+
+      if ($cors = "true") {
+        add_header 'Access-Control-Allow-Origin' "$http_origin" always;
+        add_header 'Access-Control-Allow-Methods' 'GET, PUT, POST, DELETE, PATCH, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'x-signalr-user-agent,x-requested-with,Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent' always;
+        add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range' always;
+      }
+
+      if ($cors = "trueoptions") {
+        add_header 'Access-Control-Allow-Origin' "$http_origin";
+        add_header 'Access-Control-Allow-Methods' 'GET, PUT, POST, DELETE, PATCH, OPTIONS';
+        add_header 'Access-Control-Allow-Headers' 'x-signalr-user-agent,x-requested-with,Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent';
+        add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
+        add_header 'Access-Control-Max-Age' 1728000;
+        add_header 'Content-Type' 'text/plain charset=UTF-8';
+        add_header 'Content-Length' 0;
+        return 204;
+      }
+
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    kubernetes.io/ingress.class: nginx
+  hosts:
+    - host: api.pellerex.com
+      paths:
+        - path: /production/RepoUniqueNormalisedIdentifier(/|$)(.*)
+          pathType: Prefix
+  defaultBackend:
+    service:
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

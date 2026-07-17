@@ -1,0 +1,17 @@
+# Keep the Docker build context minimal (J7).
+target/
+**/target/
+.git
+.gitignore
+.idea
+*.iml
+.vscode
+.settings
+.project
+.classpath
+infrastructure/
+*.md
+.DS_Store
+# dependency-check / test reports
+**/dependency-check-report.*
+**/surefire-reports/
