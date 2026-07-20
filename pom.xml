@@ -22,6 +22,8 @@
         <java.version>21</java.version>
         <!-- Single source of truth for the OWASP dependency-check gate version (JV-D20 / J8). -->
         <dependency-check-maven.version>12.2.2</dependency-check-maven.version>
+        <!-- Resolved-dependency lockfile plugin (see the build section). -->
+        <maven-lockfile.version>5.5.2</maven-lockfile.version>
     </properties>
 
     <dependencies>
@@ -53,6 +55,27 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+
+            <!-- Resolved-dependency lockfile — the Java equivalent of package-lock.json /
+                 packages.lock.json. Writes lockfile.json (full transitive tree, exact versions +
+                 checksums) to the repo root. Commit it: AssetHealth's vulnerability scan reads the
+                 lockfile so it sees BOM-managed and transitive dependencies, not just the direct
+                 <dependency> entries above. `generate` is bound to process-resources so any
+                 `mvn` build refreshes it; regenerate + commit whenever dependencies change. -->
+            <plugin>
+                <groupId>io.github.chains-project</groupId>
+                <artifactId>maven-lockfile</artifactId>
+                <version>${maven-lockfile.version}</version>
+                <executions>
+                    <execution>
+                        <id>generate-lockfile</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <!-- OWASP dependency-check gate — the Java pip-audit (JV-D20 / J8).
