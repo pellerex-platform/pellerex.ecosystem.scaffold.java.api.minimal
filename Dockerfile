@@ -43,7 +43,7 @@ COPY --from=build /build/target/extracted/snapshot-dependencies/ ./
 COPY --from=build /build/target/extracted/application/ ./
 
 USER spring
-EXPOSE 8890
+EXPOSE <port-number>
 
 # -javaagent attaches App Insights codelessly (APPLICATIONINSIGHTS_CONNECTION_STRING is supplied by
 # the tokenised Helm env). -XX:MaxRAMPercentage sizes the heap to the container memory limit (J13).

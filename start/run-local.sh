@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run the API locally on http://localhost:8890, reading secrets from the local file mount
+# Run the API locally on http://localhost:<port-number>, reading secrets from the local file mount
 # via configtree: (the same mechanism used in the cluster). Exporting SECRETS_MOUNT_PATH lets
 # application.yml's `configtree:${SECRETS_MOUNT_PATH:/mnt/secrets-store}/` resolve to the local
 # mount — the exact code path the container/pod uses, just pointed at the dev secrets dir.
@@ -16,5 +16,5 @@ fi
 
 export SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE:-staging}"
 
-echo "Starting Spring Boot (SPRING_PROFILES_ACTIVE=$SPRING_PROFILES_ACTIVE, SECRETS_MOUNT_PATH=$SECRETS_MOUNT_PATH) on :8890"
+echo "Starting Spring Boot (SPRING_PROFILES_ACTIVE=$SPRING_PROFILES_ACTIVE, SECRETS_MOUNT_PATH=$SECRETS_MOUNT_PATH) on :<port-number>"
 mvn -B spring-boot:run

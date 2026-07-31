@@ -73,8 +73,8 @@ securityContext:
 service:
   type: ClusterIP
   port: 80
-  # Hard-coded platform port (JV-D5) — NOT the <port-number> token (resolves to 9000).
-  targetPort: 8890
+  # Platform port via the <port-number> token (JV-D5), provisioned platform-wide.
+  targetPort: <port-number>
 
 # JVM-sized requests/limits (JV-D14 / J13). The JVM floor is higher than the other languages;
 # the cross-language reference values are too small and would OOMKill on startup.

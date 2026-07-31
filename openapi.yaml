@@ -7,7 +7,7 @@ info:
   description: Pellerex managed API (Java / Spring Boot minimal scaffold).
   version: 1.0.0
 servers:
-  - url: http://localhost:8890
+  - url: http://localhost:<port-number>
 paths:
   /health/startup:
     get:

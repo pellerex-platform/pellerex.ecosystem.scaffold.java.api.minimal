@@ -9,7 +9,7 @@ clones this repo, tokenises it, builds the image, and deploys it with Helm — e
 | Concern | How |
 |---|---|
 | Framework | Spring Boot 3.5 (REST, embedded Tomcat), JDK 21 |
-| Port | **8890**, hard-coded (`server.port`, Dockerfile `EXPOSE`, Helm `targetPort`) — never the `<port-number>` token |
+| Port | The `<port-number>` token (`server.port`, Dockerfile `EXPOSE`, Helm `targetPort`), provisioned platform-wide |
 | Health | Plain `@RestController` at `/health/{startup,live,ready}` (root, no `/api`, not Actuator). No Kubernetes probes |
 | Config | `application-{profile}.yml` + `@Validated @ConfigurationProperties` → **fail-fast at boot** |
 | Secrets | CSI tmpfs **file mount** read via `spring.config.import=configtree:/mnt/secrets-store/` — no `secretObjects`, no env-var secrets |
@@ -30,7 +30,7 @@ src/main/java/com/pellerex/api # Application, controllers, config, web advice, m
 src/main/resources             # application.yml + application-{staging,production,qualityassurance}.yml
 src/test/java/com/pellerex/api # health, sample+validation, configtree secret, config fail-fast tests
 infrastructure/
-  Helm/                        # Deployment+Service(ClusterIP 80->8890)+Ingress+ServiceAccount, no probes
+  Helm/                        # Deployment+Service(ClusterIP 80-><port-number>)+Ingress+ServiceAccount, no probes
   secret-provider-class-*.yaml # CSI SecretProviderClass per env (file mount only)
   azure-containers-pipelines.yml # mvn verify -> dependency-check -> docker build -> push
 ```
@@ -44,12 +44,12 @@ file per secret, selected by `SECRETS_MOUNT_PATH` (the same env var every non-.N
 
 ```bash
 ./start/setup-secrets.sh     # seed ~/.pellerex/secrets/<product>/ (DbConnectionString)
-./start/run-local.sh         # mvn spring-boot:run on http://localhost:8890
+./start/run-local.sh         # mvn spring-boot:run on http://localhost:<port-number>
 ```
 
 ```bash
-curl http://localhost:8890/health/ready
-curl http://localhost:8890/v1/hello
+curl http://localhost:<port-number>/health/ready
+curl http://localhost:<port-number>/v1/hello
 ```
 
 ## Logging (Serilog parity)
@@ -77,7 +77,7 @@ the app's `/mnt/secrets-store` default is used, exactly as in prod).
 
 ```bash
 docker build -t pellerex/managed-api-java:dev .
-docker run --rm -p 8890:8890 \
+docker run --rm -p <port-number>:<port-number> \
   -e SPRING_PROFILES_ACTIVE=production \
   -v "$HOME/.pellerex/secrets/RepoUniqueNormalisedIdentifier:/mnt/secrets-store:ro" \
   pellerex/managed-api-java:dev
@@ -88,4 +88,4 @@ docker run --rm -p 8890:8890 \
 The platform tokeniser substitutes (among others) `RepoUniqueNormalisedIdentifier`,
 `<secret-provider-class-enabled>`, the three `<{env}-namespace>` / `<{env}-keyvault-name>` /
 `<azure-app-insights-connection-string-in-{env}>` tokens, `<identity-id>`, `<tenant-id>` and
-`<target-branch>`. The port is **not** tokenised — it is hard-coded to 8890 (JV-D5).
+`<target-branch>`. The port is the `<port-number>` token, provisioned platform-wide.
