@@ -27,7 +27,7 @@
     </properties>
 
     <dependencies>
-        <!-- REST + embedded Tomcat on port 8890 (JV-D14). -->
+        <!-- REST + embedded Tomcat on port <port-number> (JV-D14). -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>

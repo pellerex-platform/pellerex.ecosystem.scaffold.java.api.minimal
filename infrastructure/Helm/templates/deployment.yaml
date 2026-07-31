@@ -70,8 +70,8 @@ spec:
             {{- end }}
           ports:
             - name: http
-              # Hard-coded platform port (JV-D5) — NOT the <port-number> token.
-              containerPort: 8890
+              # Platform port via the <port-number> token (JV-D5), provisioned platform-wide.
+              containerPort: <port-number>
               protocol: TCP
           # No livenessProbe / readinessProbe / startupProbe — the contract defines no k8s probes;
           # reachability is proven through ProxyApi.

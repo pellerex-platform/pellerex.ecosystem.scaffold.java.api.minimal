@@ -2,8 +2,8 @@
 # The active profile is selected per environment by SPRING_PROFILES_ACTIVE (JV-D21).
 
 server:
-  # Hard-coded platform port (JV-D5). NOT the <port-number> token (which resolves to 9000).
-  port: 8890
+  # Platform port via the <port-number> token (JV-D5), provisioned platform-wide.
+  port: <port-number>
   shutdown: graceful
 
 spring:

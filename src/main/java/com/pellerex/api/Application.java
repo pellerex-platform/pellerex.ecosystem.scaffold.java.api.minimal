@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 /**
  * Pellerex Managed API Service — Spring Boot REST API scaffold (v1).
  *
- * <p>Embedded Tomcat binds the hard-coded platform port 8890 (see application.yml). Telemetry is
+ * <p>Embedded Tomcat binds the <port-number> tokeniser token / platform port (see application.yml). Telemetry is
  * codeless via the Application Insights Java agent ({@code -javaagent}); secrets are read from the
  * CSI tmpfs file mount via {@code spring.config.import=configtree:}. No engine code is Java-aware —
  * this scaffold is the only Java-specific artifact.

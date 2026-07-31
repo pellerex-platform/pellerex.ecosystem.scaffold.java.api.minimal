@@ -49,7 +49,7 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
 
     public CorrelationIdFilter(
             @Value("${logging.structured.ecs.service.environment:development}") String environment,
-            @Value("${server.port:8890}") String serverPort) {
+            @Value("${server.port:<port-number>}") String serverPort) {
         this.environment = environment;
         this.serverPort = serverPort;
         this.machineName = resolveMachineName();
