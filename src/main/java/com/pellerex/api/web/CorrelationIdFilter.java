@@ -9,6 +9,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -20,8 +21,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * Request enrichment (JV-D7 parity — the .NET LogContextEnrichment / Go LoggingMiddleware
- * equivalent). Honours an inbound {@code X-Correlation-Id} header (or mints a UUID), echoes it on
- * the response, and puts it in the MDC so EVERY log record produced within the request carries
+ * equivalent). Takes an inbound {@code X-Correlation-Id} header when it is safe to log (or mints a
+ * UUID), echoes it on the response, and puts it in the MDC so EVERY record of the request carries
  * {@code CorrelationId} — in the ECS JSON console/file sinks, the text file pattern, and the
  * records the App Insights agent ships. Also emits one structured line per request completion.
  *
@@ -40,6 +41,14 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
 
     /** MDC key included on every log record within the request (portal-contract name). */
     public static final String CORRELATION_ID_MDC_KEY = "CorrelationId";
+
+    /**
+     * A caller's correlation id is taken as sent only when it matches this. The id comes from
+     * outside and is written to the logs and to the reply, so only a run of at most 128 ASCII
+     * letters, digits, hyphens, underscores and dots is. Any other is replaced with a new one.
+     */
+    private static final Pattern ACCEPTABLE_CORRELATION_ID =
+            Pattern.compile("[A-Za-z0-9._-]{1,128}");
 
     private static final Logger log = LoggerFactory.getLogger(CorrelationIdFilter.class);
 
@@ -60,7 +69,7 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
             HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         String correlationId = request.getHeader(CORRELATION_ID_HEADER);
-        if (correlationId == null || correlationId.isBlank()) {
+        if (correlationId == null || !ACCEPTABLE_CORRELATION_ID.matcher(correlationId).matches()) {
             correlationId = UUID.randomUUID().toString();
         }
 

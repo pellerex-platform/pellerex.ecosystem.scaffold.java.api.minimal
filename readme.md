@@ -65,9 +65,10 @@ out to three sinks like the .NET scaffold's Serilog — zero extra dependencies:
    and ships them with trace↔log correlation; no appender or SDK code needed.
 
 Every ECS record carries `service.name` / `service.version` / `service.environment` (per profile).
-`CorrelationIdFilter` honours an inbound `X-Correlation-Id` (or mints a UUID), echoes it on the
-response, puts it in the MDC (so it lands on every record in every sink), and emits one structured
-line per request. Level precedence: `LOG_LEVEL` env > profile yml > `INFO`.
+`CorrelationIdFilter` takes an inbound `X-Correlation-Id` as sent when it is at most 128 characters
+of ASCII letters, digits, hyphens, underscores and dots (any other, or none, is replaced with a new
+UUID), echoes it on the response, puts it in the MDC (so it lands on every record in every sink),
+and emits one structured line per request. Level precedence: `LOG_LEVEL` env > profile yml > `INFO`.
 
 ## Build the image
 
