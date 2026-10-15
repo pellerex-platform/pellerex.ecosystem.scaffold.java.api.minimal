@@ -2,6 +2,43 @@
   "role": {
     "name": "RepoUniqueNormalisedIdentifier"
   },
+  "sampling": {
+    "overrides": [
+      {
+        "telemetryType": "request",
+        "attributes": [
+          {
+            "key": "url.path",
+            "value": "/health/startup",
+            "matchType": "strict"
+          }
+        ],
+        "percentage": 0
+      },
+      {
+        "telemetryType": "request",
+        "attributes": [
+          {
+            "key": "url.path",
+            "value": "/health/live",
+            "matchType": "strict"
+          }
+        ],
+        "percentage": 0
+      },
+      {
+        "telemetryType": "request",
+        "attributes": [
+          {
+            "key": "url.path",
+            "value": "/health/ready",
+            "matchType": "strict"
+          }
+        ],
+        "percentage": 0
+      }
+    ]
+  },
   "instrumentation": {
     "logging": {
       "level": "INFO"

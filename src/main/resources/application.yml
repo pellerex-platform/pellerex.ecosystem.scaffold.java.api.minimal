@@ -35,6 +35,9 @@ pellerex:
 logging:
   level:
     root: ${LOG_LEVEL:INFO}
+    # The health test writes one line a minute, passed or failed, whatever level the app logs
+    # at (production's is WARN): the line is what tells what was tested and how long it took.
+    com.pellerex.api.health: INFO
   # Standing enrichers stamped on every ECS JSON record (console + json file) —
   # the Serilog Enrich equivalent. service.environment is set per profile.
   structured:
