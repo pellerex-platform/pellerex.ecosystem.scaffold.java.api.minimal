@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -111,6 +112,32 @@ class CorrelationIdFilterTest {
                 "abc[def",
                 "abc`def",
                 "abc{def");
+    }
+
+    /** Kubernetes calls the health addresses once a minute and the health test writes its own
+     *  line, so a call to them writes no request line. */
+    @ParameterizedTest
+    @ValueSource(strings = {"/health/startup", "/health/live", "/health/ready"})
+    void aCallToAHealthAddressWritesNoRequestLine(String path) throws Exception {
+        filter.doFilter(
+                new MockHttpServletRequest("GET", path),
+                new MockHttpServletResponse(),
+                (servedRequest, servedResponse) -> {});
+
+        assertThat(requestLines.list).isEmpty();
+        assertThat(MDC.getCopyOfContextMap()).as("the request's entries are cleared").isNullOrEmpty();
+    }
+
+    /** Only the three health addresses are left out: one that merely starts like them is not. */
+    @Test
+    void anAddressNextToAHealthAddressKeepsItsRequestLine() throws Exception {
+        filter.doFilter(
+                new MockHttpServletRequest("GET", "/health/readyz"),
+                new MockHttpServletResponse(),
+                (servedRequest, servedResponse) -> {});
+
+        assertThat(requestLines.list).hasSize(1);
+        assertThat(requestLines.list.get(0).getMDCPropertyMap()).containsEntry("RequestPath", "/health/readyz");
     }
 
     private Served serve(String sent) throws Exception {

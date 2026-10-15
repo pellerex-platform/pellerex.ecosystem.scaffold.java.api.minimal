@@ -10,10 +10,10 @@ clones this repo, tokenises it, builds the image, and deploys it with Helm — e
 |---|---|
 | Framework | Spring Boot 3.5 (REST, embedded Tomcat), JDK 21 |
 | Port | The `<port-number>` token (`server.port`, Dockerfile `EXPOSE`, Helm `targetPort`), provisioned platform-wide |
-| Health | Plain `@RestController` at `/health/{startup,live,ready}` (root, no `/api`, not Actuator). No Kubernetes probes |
+| Health | Plain `@RestController` at `/health/{startup,live,ready}` (root, no `/api`, not Actuator), answering `Healthy` (200) or `Unhealthy` (503) from the health test `HealthTester` runs once a minute; one log line per test. A new app has nothing to test: add a `HealthCheck` bean for what it cannot work without. The chart's Kubernetes checks take a pod out of traffic after two failed checks and restart it after five |
 | Config | `application-{profile}.yml` + `@Validated @ConfigurationProperties` → **fail-fast at boot** |
 | Secrets | CSI tmpfs **file mount** read via `spring.config.import=configtree:/mnt/secrets-store/` — no `secretObjects`, no env-var secrets |
-| Telemetry | **Codeless** App Insights Java agent (`-javaagent`), `APPLICATIONINSIGHTS_CONNECTION_STRING` from the tokenised env |
+| Telemetry | **Codeless** App Insights Java agent (`-javaagent`), `APPLICATIONINSIGHTS_CONNECTION_STRING` from the tokenised env. Calls to the three health addresses are not recorded as requests (sampling overrides in `applicationinsights.json`) |
 | Logging | Spring Boot **structured logging** (ECS JSON) fan-out: console + daily-rolling `log-<date>.log`/`.json` files + App Insights (agent ships Logback records); config-driven level; `X-Correlation-Id` on every record |
 | Image | Multi-stage Temurin 21 JDK build → `eclipse-temurin:21-jre`, layered jar, non-root |
 | Hardening | Read-only root FS + writable `/tmp` emptyDir, drop ALL caps, no-priv-esc, runAsNonRoot, seccomp `RuntimeDefault` |
@@ -25,12 +25,12 @@ clones this repo, tokenises it, builds the image, and deploys it with Helm — e
 ```
 pom.xml                       # Spring Boot 3.5, pinned deps, OWASP dependency-check gate
 Dockerfile                    # multi-stage, layered jar, App Insights agent, non-root
-applicationinsights.json      # agent self-diagnostics -> console (read-only FS friendly)
+applicationinsights.json      # agent self-diagnostics -> console (read-only FS friendly), health calls not recorded
 src/main/java/com/pellerex/api # Application, controllers, config, web advice, model
 src/main/resources             # application.yml + application-{staging,production,qualityassurance}.yml
 src/test/java/com/pellerex/api # health, sample+validation, configtree secret, config fail-fast tests
 infrastructure/
-  Helm/                        # Deployment+Service(ClusterIP 80-><port-number>)+Ingress+ServiceAccount, no probes
+  Helm/                        # Deployment+Service(ClusterIP 80-><port-number>)+Ingress+ServiceAccount, health probes
   secret-provider-class-*.yaml # CSI SecretProviderClass per env (file mount only)
   azure-containers-pipelines.yml # mvn verify -> dependency-check -> docker build -> push
 ```
@@ -68,7 +68,9 @@ Every ECS record carries `service.name` / `service.version` / `service.environme
 `CorrelationIdFilter` takes an inbound `X-Correlation-Id` as sent when it is at most 128 characters
 of ASCII letters, digits, hyphens, underscores and dots (any other, or none, is replaced with a new
 UUID), echoes it on the response, puts it in the MDC (so it lands on every record in every sink),
-and emits one structured line per request. Level precedence: `LOG_LEVEL` env > profile yml > `INFO`.
+and emits one structured line per request, except calls to the three health addresses. Level
+precedence: `LOG_LEVEL` env > profile yml > `INFO`. The health test's line (`com.pellerex.api.health`)
+is the one exception: it is written at `INFO` in every environment, production included.
 
 ## Build the image
 

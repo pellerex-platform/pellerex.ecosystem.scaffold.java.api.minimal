@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -24,7 +25,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * equivalent). Takes an inbound {@code X-Correlation-Id} header when it is safe to log (or mints a
  * UUID), echoes it on the response, and puts it in the MDC so EVERY record of the request carries
  * {@code CorrelationId} — in the ECS JSON console/file sinks, the text file pattern, and the
- * records the App Insights agent ships. Also emits one structured line per request completion.
+ * records the App Insights agent ships. Also emits one structured line per request completion,
+ * except for the health addresses.
  *
  * <p>The MDC key names on the completion line are a CONTRACT with the Pellerex portal's Logs tab:
  * its KQL reads customDimensions.RequestMethod / RequestPath / StatusCode / Elapsed /
@@ -49,6 +51,13 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
      */
     private static final Pattern ACCEPTABLE_CORRELATION_ID =
             Pattern.compile("[A-Za-z0-9._-]{1,128}");
+
+    /**
+     * The health addresses ({@code HealthController}). Kubernetes calls them once a minute and the
+     * health test writes its own line, so a request line for them would only repeat it.
+     */
+    private static final Set<String> HEALTH_PATHS =
+            Set.of("/health/startup", "/health/live", "/health/ready");
 
     private static final Logger log = LoggerFactory.getLogger(CorrelationIdFilter.class);
 
@@ -79,26 +88,34 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
         try {
             filterChain.doFilter(request, response);
         } finally {
-            double elapsedMs = (System.nanoTime() - start) / 1_000_000.0;
-            String elapsed = String.format(Locale.ROOT, "%.3f", elapsedMs);
-            MDC.put("StatusCode", String.valueOf(response.getStatus()));
-            MDC.put("RequestMethod", request.getMethod());
-            MDC.put("RequestPath", request.getRequestURI());
-            MDC.put("Elapsed", elapsed);
-            MDC.put("Environment", this.environment);
-            MDC.put("UserAgent", valueOrEmpty(request.getHeader("User-Agent")));
-            MDC.put("ClientIPAddress", clientIp(request));
-            MDC.put("ClientPort", String.valueOf(request.getRemotePort()));
-            MDC.put("Port", this.serverPort);
-            MDC.put("MachineName", this.machineName);
-            log.info(
-                    "HTTP {} {} responded {} in {} ms",
-                    request.getMethod(),
-                    request.getRequestURI(),
-                    response.getStatus(),
-                    elapsed);
+            if (!HEALTH_PATHS.contains(request.getRequestURI())) {
+                logRequestLine(request, response, start);
+            }
             MDC.clear();
         }
+    }
+
+    /** The request line, with the names the portal's Logs tab reads. */
+    private void logRequestLine(
+            HttpServletRequest request, HttpServletResponse response, long start) {
+        double elapsedMs = (System.nanoTime() - start) / 1_000_000.0;
+        String elapsed = String.format(Locale.ROOT, "%.3f", elapsedMs);
+        MDC.put("StatusCode", String.valueOf(response.getStatus()));
+        MDC.put("RequestMethod", request.getMethod());
+        MDC.put("RequestPath", request.getRequestURI());
+        MDC.put("Elapsed", elapsed);
+        MDC.put("Environment", this.environment);
+        MDC.put("UserAgent", valueOrEmpty(request.getHeader("User-Agent")));
+        MDC.put("ClientIPAddress", clientIp(request));
+        MDC.put("ClientPort", String.valueOf(request.getRemotePort()));
+        MDC.put("Port", this.serverPort);
+        MDC.put("MachineName", this.machineName);
+        log.info(
+                "HTTP {} {} responded {} in {} ms",
+                request.getMethod(),
+                request.getRequestURI(),
+                response.getStatus(),
+                elapsed);
     }
 
     /** Client IP, honouring X-Forwarded-For when the request came through the ingress. */
