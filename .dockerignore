@@ -10,6 +10,8 @@ target/
 .project
 .classpath
 infrastructure/
+# The Dockerfile's unit-tests stage runs HealthChartTest, which reads the chart.
+!infrastructure/Helm/
 *.md
 .DS_Store
 # dependency-check / test reports
