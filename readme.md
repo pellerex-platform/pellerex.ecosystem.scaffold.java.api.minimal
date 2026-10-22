@@ -24,7 +24,7 @@ clones this repo, tokenises it, builds the image, and deploys it with Helm — e
 
 ```
 pom.xml                       # Spring Boot 3.5, pinned deps, OWASP dependency-check gate
-Dockerfile                    # multi-stage, layered jar, App Insights agent, non-root
+Dockerfile                    # multi-stage, layered jar, App Insights agent, non-root, unit-tests stage
 applicationinsights.json      # agent self-diagnostics -> console (read-only FS friendly), health calls not recorded
 src/main/java/com/pellerex/api # Application, controllers, config, web advice, model
 src/main/resources             # application.yml + application-{staging,production,qualityassurance}.yml
@@ -32,7 +32,7 @@ src/test/java/com/pellerex/api # health, sample+validation, configtree secret, c
 infrastructure/
   Helm/                        # Deployment+Service(ClusterIP 80-><port-number>)+Ingress+ServiceAccount, health probes
   secret-provider-class-*.yaml # CSI SecretProviderClass per env (file mount only)
-  azure-containers-pipelines.yml # mvn verify -> dependency-check -> docker build -> push
+  azure-containers-pipelines.yml # unit tests -> test-coverage artifact -> mvn verify -> dependency-check -> docker build -> push
 ```
 
 ## Run locally
@@ -84,6 +84,14 @@ docker run --rm -p <port-number>:<port-number> \
   -e SPRING_PROFILES_ACTIVE=production \
   -v "$HOME/.pellerex/secrets/RepoUniqueNormalisedIdentifier:/mnt/secrets-store:ro" \
   pellerex/managed-api-java:dev
+```
+
+The image build does not run the tests: both pipelines run them first, in the Dockerfile's
+`unit-tests` stage, publish the JUnit and JaCoCo XML as the `test-coverage` artifact, and stop when
+a test fails. The same run on your machine writes the results under `target/unit-test-results/`:
+
+```bash
+docker buildx build --target unit-test-results --output type=local,dest=target/unit-test-results .
 ```
 
 ## Provisioning tokens

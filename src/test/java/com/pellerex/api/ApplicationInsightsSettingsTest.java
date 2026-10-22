@@ -26,7 +26,7 @@ class ApplicationInsightsSettingsTest {
      */
     @Test
     void theAgentLeavesOutCallsToTheThreeHealthAddressesOnly() throws IOException {
-        // The Docker build compiles and tests with only pom.xml and src/, without the settings file
+        // The Dockerfile's unit-tests stage copies the settings in; a build with only pom.xml and src/ has none
         assumeTrue(Files.exists(SETTINGS), "the agent's settings are not in this build");
         JsonNode overrides = new ObjectMapper().readTree(SETTINGS.toFile()).at("/sampling/overrides");
 

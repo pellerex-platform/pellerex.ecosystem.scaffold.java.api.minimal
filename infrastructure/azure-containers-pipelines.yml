@@ -17,11 +17,28 @@ steps:
   - checkout: self
     lfs: true
 
-  # Build + unit tests + OWASP dependency-check gate (JV-D20 / J8 / J11).
+  # The unit tests run in the Dockerfile's unit-tests stage, as in the GitHub build. Their
+  # results and coverage are kept as the test-coverage artifact, which Pellerex reads after
+  # the build for the app's Test Coverage tab. The build stops after the upload when a test
+  # failed, so a build with a failing test publishes nothing.
+  - script: docker buildx build --target unit-test-results --output type=local,dest=$(Agent.TempDirectory)/unit-test-results .
+    displayName: "Run unit tests"
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathtoPublish: "$(Agent.TempDirectory)/unit-test-results/test-coverage"
+      artifactName: "test-coverage"
+    displayName: "Upload test coverage"
+
+  - script: grep -qx 0 "$(Agent.TempDirectory)/unit-test-results/unit-tests-exit-code"
+    displayName: "Stop when a unit test failed"
+
+  # Build + OWASP dependency-check gate (JV-D20 / J8 / J11). The unit tests ran in the
+  # steps above, so this step skips them.
   # dependency-check:check is bound to the `verify` phase, so `mvn verify` runs it.
   - script: |
       export JAVA_HOME=$(JAVA_HOME_21_X64)
-      mvn -B -ntp verify
+      mvn -B -ntp verify -Dmaven.test.skip=true
     displayName: "Maven verify + OWASP dependency-check"
     env:
       NVD_API_KEY: $(NVD_API_KEY)

@@ -24,6 +24,8 @@
         <dependency-check-maven.version>12.2.2</dependency-check-maven.version>
         <!-- Resolved-dependency lockfile plugin (see the build section). -->
         <maven-lockfile.version>5.5.2</maven-lockfile.version>
+        <!-- JaCoCo coverage plugin, run by the Dockerfile's unit-tests stage (see the build section). -->
+        <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
     </properties>
 
     <dependencies>
@@ -50,6 +52,19 @@
     <build>
         <!-- Fixed jar name so the Dockerfile layered-extract step is repo-independent. -->
         <finalName>application</finalName>
+        <pluginManagement>
+            <plugins>
+                <!-- JaCoCo coverage. The Dockerfile's unit-tests stage runs it from the command line
+                     (jacoco:prepare-agent with the tests, then jacoco:report), which writes the
+                     coverage as JaCoCo XML for the build's test-coverage artifact. It is not bound to
+                     the lifecycle, so every other Maven build runs as before. -->
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>${jacoco-maven-plugin.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <!-- Produces the executable, layered Spring Boot jar (JV-D14 / J6). -->
             <plugin>

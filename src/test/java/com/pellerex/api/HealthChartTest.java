@@ -46,7 +46,7 @@ class HealthChartTest {
 
     @Test
     void chartChecksActOnTheHealthTestAtTheTwoSpeeds() throws IOException {
-        // The Docker build compiles and tests without the chart (.dockerignore leaves infrastructure/ out)
+        // The Dockerfile's unit-tests stage copies the chart in; a build with only pom.xml and src/ has none
         assumeTrue(Files.exists(CHART), "the chart is not in this build");
         List<String> chart = Files.readAllLines(CHART);
 
